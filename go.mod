@@ -1,3 +1,3 @@
-module github.com/gjsbrt/govictoria
+module github.com/GJSBRT/govictoria
 
 go 1.19
