@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -62,7 +63,7 @@ func (g *GoVictoria) SendMetrics(requests []VictoriaMetricsRequest) error {
 
 	// Check if the status code is not 204
 	if response.StatusCode != http.StatusNoContent {
-		return errors.New("Victoria Metrics returned a non-200 status code")
+		return errors.New(fmt.Sprintf("Victoria Metrics returned a non-200 status code: %d", response.StatusCode))
 	}
 
 	return nil
@@ -78,7 +79,7 @@ func (g *GoVictoria) QueryTimeRange(promql string, startTime time.Time, endTime 
 	// Add the query parameters to the request
 	url := g.Config.URL
 	url += "/api/v1/query_range"
-	url += "?query=" + promql
+	url += "?query=" + url.QueryEscape(promql)
 	url += "&start=" + strconv.FormatInt(startTime.Unix(), 10)
 	url += "&end=" + strconv.FormatInt(endTime.Unix(), 10)
 	url += "&step=" + step
@@ -103,7 +104,7 @@ func (g *GoVictoria) QueryTimeRange(promql string, startTime time.Time, endTime 
 
 	// Check if the status code is not 200
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.New("Victoria Metrics returned a non-200 status code")
+		return nil, errors.New(fmt.Sprintf("Victoria Metrics returned a non-200 status code: %d", response.StatusCode))
 	}
 
 	return nil, nil
