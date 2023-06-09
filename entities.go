@@ -18,7 +18,7 @@ type VictoriaMetricsQueryResponse struct {
 		ResultType string `json:"resultType"`
 		Result     []struct {
 			Metric map[string]string `json:"metric"`
-			Values []int   `json:"values"`
+			Values [][]interface{}   `json:"values"`
 		} `json:"result"`
 	} `json:"data"`
 }
