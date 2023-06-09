@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"io/ioutil"
 	"strconv"
 	"time"
 )
@@ -70,19 +72,20 @@ func (g *GoVictoria) SendMetrics(requests []VictoriaMetricsRequest) error {
 }
 
 // QueryTimeRange queries Victoria Metrics for metrics in a time range
-func (g *GoVictoria) QueryTimeRange(promql string, startTime time.Time, endTime time.Time, step string) (metrics map[string]string, err error) {
+func (g *GoVictoria) QueryTimeRange(promql string, startTime time.Time, endTime time.Time, step string) (VictoriaMetricsQueryResponse, error) {
 	// Check if the start time is before the end time
 	if startTime.After(endTime) {
-		return nil, errors.New("Start time must be before end time")
+		return VictoriaMetricsQueryResponse{}, errors.New("Start time must be before end time")
 	}
 
 	// Add the query parameters to the request
-	url := g.Config.URL
-	url += "/api/v1/query_range"
-	url += "?query=" + url.QueryEscape(promql)
-	url += "&start=" + strconv.FormatInt(startTime.Unix(), 10)
-	url += "&end=" + strconv.FormatInt(endTime.Unix(), 10)
-	url += "&step=" + step
+    params := url.Values{}
+	params.Add("query", promql)
+	params.Add("start", strconv.FormatInt(startTime.Unix(), 10))
+	params.Add("end", strconv.FormatInt(endTime.Unix(), 10))
+	params.Add("step", step)
+
+	url := g.Config.URL+"/api/v1/query_range?"+params.Encode()
 
 	// Create the request to Victoria Metrics
 	request, err := http.NewRequest("GET", url, nil)
@@ -93,19 +96,29 @@ func (g *GoVictoria) QueryTimeRange(promql string, startTime time.Time, endTime 
 	// Send the request to Victoria Metrics
 	response, err := g.Client.Do(request)
 	if err != nil {
-		return nil, err
-	}
-
-	// Close the response body
-	err = response.Body.Close()
-	if err != nil {
-		return nil, err
+		return VictoriaMetricsQueryResponse{}, err
 	}
 
 	// Check if the status code is not 200
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.New(fmt.Sprintf("Victoria Metrics returned a non-200 status code: %d", response.StatusCode))
+		return VictoriaMetricsQueryResponse{}, errors.New(fmt.Sprintf("Victoria Metrics returned a non-200 status code: %d", response.StatusCode))
 	}
 
-	return nil, nil
+	// Read the response body
+    body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return VictoriaMetricsQueryResponse{}, err
+	}
+	
+	// Close the response body
+	err = response.Body.Close()
+	if err != nil {
+		return VictoriaMetricsQueryResponse{}, err
+	}
+
+	// Unmarshal the response
+	var metrics VictoriaMetricsQueryResponse
+	json.Unmarshal([]byte(body), &metrics)
+
+	return metrics, nil
 }
