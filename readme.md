@@ -4,4 +4,4 @@ A simple module for Go to interact with Victoria Metrics.
 **Features:**
 - [x] Insert data
 - [x] Query data
-- [] Delete data
+- [ ] Delete data
