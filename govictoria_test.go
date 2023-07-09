@@ -5,8 +5,12 @@ import (
 	"time"
 )
 
+const (
+	testURL = "http://localhost:8428"
+)
+
 func Test_SendMetrics(t *testing.T) {
-	vm := NewGoVictoria("http://localhost:8428", "", "")
+	vm := NewGoVictoria(testURL, "", "")
 
 	err := vm.SendMetrics([]VictoriaMetricsRequest{
 		{
@@ -24,7 +28,7 @@ func Test_SendMetrics(t *testing.T) {
 }
 
 func Test_QueryTimeRange(t *testing.T) {
-	vm := NewGoVictoria("http://localhost:8428", "", "")
+	vm := NewGoVictoria(testURL, "", "")
 
 	_, err := vm.QueryTimeRange("test_metric{}", time.Now().Add(-time.Hour*24), time.Now(), "20s")
 	if err != nil {
