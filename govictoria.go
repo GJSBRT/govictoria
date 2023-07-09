@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
-	"io/ioutil"
 	"strconv"
 	"time"
 )
@@ -35,9 +35,12 @@ func NewGoVictoria(url string, username string, password string) *GoVictoria {
 
 // SendMetrics sends the metrics to VictoriaMetrics
 func (g *GoVictoria) SendMetrics(requests []VictoriaMetricsRequest) error {
-	body := ""
+	if len(requests) == 0 {
+		return errors.New("No requests to send")
+	}
 
 	// Loop through the request and build the body
+	body := ""
 	for _, requestBody := range requests {
 		jsonRequest, err := json.Marshal(requestBody)
 		if err != nil {
@@ -49,7 +52,7 @@ func (g *GoVictoria) SendMetrics(requests []VictoriaMetricsRequest) error {
 
 	// Create the request to Victoria Metrics
 	request, err := http.NewRequest("POST", g.Config.URL+"/api/v1/import", bytes.NewBuffer([]byte(body)))
-	request.Header.Add("Authorization", "Basic "+basicAuth(g.Config.Username, g.Config.Password))
+	request.Header.Add("Authorization", "Basic "+BasicAuth(g.Config.Username, g.Config.Password))
 
 	// Send the request to Victoria Metrics
 	response, err := g.Client.Do(request)
@@ -79,19 +82,22 @@ func (g *GoVictoria) QueryTimeRange(promql string, startTime time.Time, endTime 
 	}
 
 	// Add the query parameters to the request
-    params := url.Values{}
+	params := url.Values{}
 	params.Add("query", promql)
 	params.Add("start", strconv.FormatInt(startTime.Unix(), 10))
 	params.Add("end", strconv.FormatInt(endTime.Unix(), 10))
 	params.Add("step", step)
 
-	url := g.Config.URL+"/api/v1/query_range?"+params.Encode()
+	url := g.Config.URL + "/api/v1/query_range?" + params.Encode()
 
 	// Create the request to Victoria Metrics
 	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return VictoriaMetricsQueryResponse{}, err
+	}
 
 	// Add the query parameters to the request
-	request.Header.Add("Authorization", "Basic "+basicAuth(g.Config.Username, g.Config.Password))
+	request.Header.Add("Authorization", "Basic "+BasicAuth(g.Config.Username, g.Config.Password))
 
 	// Send the request to Victoria Metrics
 	response, err := g.Client.Do(request)
@@ -105,11 +111,11 @@ func (g *GoVictoria) QueryTimeRange(promql string, startTime time.Time, endTime 
 	}
 
 	// Read the response body
-    body, err := ioutil.ReadAll(response.Body)
+	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return VictoriaMetricsQueryResponse{}, err
 	}
-	
+
 	// Close the response body
 	err = response.Body.Close()
 	if err != nil {
@@ -118,7 +124,10 @@ func (g *GoVictoria) QueryTimeRange(promql string, startTime time.Time, endTime 
 
 	// Unmarshal the response
 	var metrics VictoriaMetricsQueryResponse
-	json.Unmarshal([]byte(body), &metrics)
+	err = json.Unmarshal([]byte(body), &metrics)
+	if err != nil {
+		return VictoriaMetricsQueryResponse{}, err
+	}
 
 	return metrics, nil
 }
